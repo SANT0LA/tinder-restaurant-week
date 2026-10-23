@@ -214,6 +214,16 @@ h1, h2, .display { font-family: var(--display); font-weight: 500; text-wrap: bal
 .m.jv { position: relative; margin-top: 12px; background: color-mix(in srgb, var(--gold) 14%, var(--wine)); border: 1.5px solid var(--gold); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 12%, transparent), 0 14px 34px -16px #000; }
 .m.jv .go { color: var(--gold); }
 .jv-tag { position: absolute; top: -11px; left: 14px; background: var(--gold); color: var(--rose-ink); font-size: 10.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; }
+.mystery { width: 64px; height: 64px; border-radius: 12px; display: grid; place-items: center; font-family: var(--display); font-size: 34px; font-style: italic; color: var(--gold); background: radial-gradient(circle at 35% 30%, var(--velvet), var(--night)); border: 1px dashed var(--gold); }
+.mystery.big { width: 84px; height: 84px; font-size: 46px; border-radius: 50%; margin: 0 auto; }
+.sheet.center { align-items: center; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.dialog { width: min(400px, 100%); background: var(--wine); border: 1px solid var(--gold); border-radius: 22px; padding: 24px 20px 20px; text-align: center; display: grid; gap: 10px; box-shadow: 0 30px 70px -20px #000; animation: dlg .28s cubic-bezier(.2,.8,.3,1); }
+.dialog h2 { margin: 6px 0 0; font-size: 30px; }
+.dialog p { margin: 0; color: var(--muted); font-size: 14px; }
+.dialog p b { color: var(--ink); font-weight: 600; }
+.dlg-btns { display: grid; gap: 8px; margin-top: 8px; }
+@keyframes dlg { from { transform: scale(.92); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .dialog { animation: none; } }
 .empty { text-align: center; color: var(--muted); padding: 30px 10px; display: grid; gap: 14px; justify-items: center; }
 
 /* ---------- Detail sheet ---------- */
@@ -310,14 +320,14 @@ h1, h2, .display { font-family: var(--display); font-weight: 500; text-wrap: bal
       <span class="counter" id="mleft"></span>
     </div>
     <h2 style="margin:14px 0 0;font-size:30px;line-height:1.1">Seus matches</h2>
-    <div class="guide" style="margin-top:10px"><b>Etapa 3 de 3.</b> Toque em um restaurante pra rever o menu. Quando achar o do nosso date, toque em <b>"É esse!"</b> lá embaixo.</div>
+    <div class="guide" style="margin-top:10px"><b>Etapa 3 de 3.</b> Toque em um restaurante pra rever o menu. Quando achar o do nosso date, toque em <b>"É esse!"</b> lá embaixo. Ou arrisque a <b>escolha secreta</b> do João Victor.</div>
     <div class="list" id="mlist"></div>
   </section>
 
   <!-- Final -->
   <section class="screen" id="s-final" hidden>
-    <div class="eyebrow">Date marcado</div>
-    <h1>Escolhido: <em id="fname"></em></h1>
+    <div class="eyebrow" id="feyebrow">Date marcado</div>
+    <h1><span id="flead">Escolhido:</span> <em id="fname"></em></h1>
     <div class="guide" style="text-align:left"><b>Último passo.</b> Toque em <b>"Mandar pro João Victor"</b>: o WhatsApp abre com a mensagem abaixo pronta, é só tocar em enviar. Se não abrir, toque em "Copiar mensagem" e mande pro número <b class="sel">(71) 99374-4305</b>.</div>
     <div class="ticket" id="ticket"></div>
     <pre class="msgbox" id="msg"></pre>
@@ -741,18 +751,39 @@ function renderMatches() {
     return `<button class="m" data-id="${id}"><img src="img/${id}.jpg" alt=""><div><div class="nm">${esc(r.name)}</div>
       <div class="sb">${esc(r.bairro)}${r.cuis.length ? ' · ' + esc(r.cuis.join(', ').toLowerCase()) : ''}</div></div><span class="go">Ver menu</span></button>`;
   };
-  const jr = BY_ID[JV_PICK];
-  const both = S.likes.includes(JV_PICK);
-  const jv = jr ? `<button class="m jv" data-id="${JV_PICK}">
-      <span class="jv-tag">Escolha do João Victor</span>
-      <img src="img/${JV_PICK}.jpg" alt=""><div><div class="nm">${esc(jr.name)}</div>
-      <div class="sb">${both ? 'Você também deu match! Deu match duplo' : 'A minha aposta pra nós dois'} · ${esc(jr.bairro)}</div></div><span class="go">Ver menu</span></button>` : '';
-  const mine = S.likes.filter(id => id !== JV_PICK);
+  const jv = `<button class="m jv" id="jvBtn">
+      <span class="jv-tag">Escolha secreta do João Victor</span>
+      <div class="mystery" aria-hidden="true">?</div><div><div class="nm">Restaurante surpresa</div>
+      <div class="sb">Só dá pra descobrir qual é escolhendo. Toque pra ver as regras.</div></div><span class="go">Abrir</span></button>`;
+  const mine = S.likes;
   L.innerHTML = jv + (mine.length
     ? `<div class="eyebrow" style="margin-top:6px">Os seus matches</div>` + mine.map(row).join('')
-    : `<div class="empty"><div>${both ? 'Seu único match foi justamente a minha escolha.' : 'Você ainda não deu nenhum match. Volte aos cards e arraste pra direita os que deram vontade.'}</div><button class="btn ghost" id="mgo">Ver cards</button></div>`);
+    : `<div class="empty"><div>Você ainda não deu nenhum match. Volte aos cards e arraste pra direita os que deram vontade, ou arrisque a surpresa aí em cima.</div><button class="btn ghost" id="mgo">Ver cards</button></div>`);
   const mg = $('#mgo'); if (mg) mg.onclick = () => show('deck');
-  L.querySelectorAll('.m').forEach(b => b.onclick = () => openSheet(+b.dataset.id));
+  $('#jvBtn').onclick = secretDialog;
+  L.querySelectorAll('.m[data-id]').forEach(b => b.onclick = () => openSheet(+b.dataset.id));
+}
+function secretDialog() {
+  const sh = $('#sheet');
+  sh.innerHTML = `<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlgT">
+    <div class="mystery big" aria-hidden="true">?</div>
+    <h2 id="dlgT">Tem certeza?</h2>
+    <p>Essa é a escolha secreta do João Victor. Você só descobre qual é o restaurante depois de escolher.</p>
+    <p><b>E se escolher, não tem volta:</b> não dá pra trocar por outro depois.</p>
+    <div class="dlg-btns">
+      <button class="btn gold" id="dlgYes">Tenho certeza, confio nele</button>
+      <button class="btn ghost" id="dlgNo">Melhor não, vou escolher eu</button>
+    </div></div>`;
+  sh.classList.add('center');
+  sh.hidden = false;
+  sh.onclick = e => { if (e.target === sh) closeSheet(); };
+  $('#dlgNo').onclick = closeSheet;
+  $('#dlgYes').onclick = () => {
+    S.chosen = { id: JV_PICK, per: 'jantar', secret: true };
+    S.locked = true;
+    closeSheet(); show('final');
+  };
+  $('#dlgYes').focus();
 }
 $('#mback').onclick = () => show('deck');
 function openSheet(id) {
@@ -770,7 +801,7 @@ function openSheet(id) {
     closeSheet(); show('final');
   };
 }
-function closeSheet() { $('#sheet').hidden = true; $('#sheet').innerHTML = ''; }
+function closeSheet() { const sh = $('#sheet'); sh.hidden = true; sh.innerHTML = ''; sh.classList.remove('center'); }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
 
 /* ---------- final ---------- */
@@ -780,8 +811,11 @@ function dateLabel() {
   return `${WD[d.getDay()].toLowerCase()}, ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
 }
 function renderFinal() {
-  const { id, per } = S.chosen; const r = BY_ID[id];
+  const { id, per, secret } = S.chosen; const r = BY_ID[id];
   $('#fname').textContent = r.name;
+  $('#feyebrow').textContent = secret ? 'Surpresa revelada' : 'Date marcado';
+  $('#flead').textContent = secret ? 'A escolha do João Victor era' : 'Escolhido:';
+  $('#backm').hidden = $('#restart').hidden = !!S.locked;
   const link = `https://eventos.restaurantweek.com.br/salvador/restaurante/${id}`;
   $('#ticket').innerHTML = `<div class="photo" style="background-image:url('img/${id}.jpg')">
       <div class="head"><h3>${esc(r.name)}</h3><div class="where">${esc(r.bairro)}</div></div></div>
@@ -791,7 +825,7 @@ function renderFinal() {
       <div class="row"><span>Endereço</span><span>${esc(r.end)}</span></div>
       ${r.horario ? `<div class="row"><span>Horário</span><span>${esc(noPrice(r.horario))}</span></div>` : ''}
     </div>`;
-  const msg = `João Victor, escolhi o nosso date 💘\n\n${r.name} (${r.bairro})\nQuando: ${dateLabel()}, ${PER[per].toLowerCase()}\n${r.reserva ? 'Precisa reservar' : 'Bom reservar'}${r.tel ? ': ' + r.tel : ''}\n\n${link}`;
+  const msg = `${secret ? 'João Victor, confiei em você e escolhi a sua escolha secreta 💘' : 'João Victor, escolhi o nosso date 💘'}\n\n${r.name} (${r.bairro})\nQuando: ${dateLabel()}, ${PER[per].toLowerCase()}\n${r.reserva ? 'Precisa reservar' : 'Bom reservar'}${r.tel ? ': ' + r.tel : ''}\n\n${link}`;
   $('#msg').textContent = msg;
   $('#wa').href = 'https://wa.me/5571993744305?text=' + encodeURIComponent(msg);
   $('#copy').onclick = () => {
@@ -833,7 +867,7 @@ function show(v) {
   if (v === 'invite') $('#resume').hidden = !(S.step > 0 || S.deck.length);
 }
 $('#icount').textContent = pool(blank().a).length;
-$('#start').onclick = () => { S = blank(); S.view = 'quiz'; show('quiz'); };
+$('#start').onclick = () => { if (S.locked && S.chosen) return show('final'); S = blank(); S.view = 'quiz'; show('quiz'); };
 $('#resume').onclick = () => show(S.chosen ? 'final' : S.deck.length ? 'deck' : 'quiz');
 
 const saved = load();
